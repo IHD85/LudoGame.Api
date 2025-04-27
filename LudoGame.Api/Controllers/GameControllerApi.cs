@@ -28,7 +28,7 @@ public class GameControllerApi : ControllerBase
     [HttpGet("current")]
     public ActionResult<int> GetCurrentPlayer()
     {
-        return Ok(_gameController.GetCurrentPlayer() + 1);
+        return Ok(_gameController.GetCurrentPlayer());
     }
 
 

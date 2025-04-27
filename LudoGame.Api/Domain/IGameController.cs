@@ -10,6 +10,5 @@ public interface IGameController
     BoardStatusDto GetBoardStatus();
     bool MovePiece(int pieceId, int diceRoll);
     int? CheckWinner();
-    int? GetWinnerId();
-    void Reset(); // 🆕 ← Tilføjet Reset-funktion
+    void Reset();
 }

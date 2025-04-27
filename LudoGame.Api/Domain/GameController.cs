@@ -1,5 +1,6 @@
 ﻿using LudoGame.Api.Dtos;
 
+
 namespace LudoGame.Domain;
 
 /// <summary>
@@ -13,12 +14,10 @@ public class GameController : IGameController
     private int _currentPlayerIndex = 0; // Holder styr på hvem der har tur
     private readonly int _totalPlayers; // Antal spillere
     private int? _winnerId = null; // Vinderens ID hvis spillet er slut
-
     private readonly List<PlayerDto> _players; // Spillere og deres brikker
 
     /// <summary>
     /// Constructor - Initialiserer spillet med spillere, farver og brikker.
-    /// Opfylder Single Responsibility ved kun at sætte starttilstanden.
     /// </summary>
     public GameController(int totalPlayers)
     {
@@ -28,7 +27,7 @@ public class GameController : IGameController
         _totalPlayers = totalPlayers;
 
         var colors = new[] { "Rød", "Grøn", "Blå", "Gul" };
-        _players = new();
+        _players = new List<PlayerDto>();
 
         for (int i = 0; i < totalPlayers; i++)
         {
@@ -39,20 +38,14 @@ public class GameController : IGameController
                 Pieces = Enumerable.Range(0, 4).Select(pid => new PieceDto
                 {
                     Id = pid,
-                    Position = -1 // Starter i hjem (ikke på brættet)
+                    Position = -1 // Starter i hjem
                 }).ToList()
             });
         }
     }
 
-    /// <summary>
-    /// Returnerer aktuel spillers ID (0-baseret).
-    /// </summary>
     public int GetCurrentPlayer() => _currentPlayerIndex;
 
-    /// <summary>
-    /// Skifter tur til næste spiller (rundt i cirkel).
-    /// </summary>
     public void NextTurn()
     {
         if (_winnerId != null) return; // Ingen skift hvis der er fundet en vinder
@@ -60,17 +53,11 @@ public class GameController : IGameController
         _currentPlayerIndex = (_currentPlayerIndex + 1) % _totalPlayers;
     }
 
-    /// <summary>
-    /// Slår en terning (tilfældig mellem 1-6).
-    /// </summary>
     public int RollDice()
     {
         return Random.Shared.Next(1, 7);
     }
 
-    /// <summary>
-    /// Returnerer nuværende status for brættet: spillere og deres brikker.
-    /// </summary>
     public BoardStatusDto GetBoardStatus()
     {
         return new BoardStatusDto
@@ -79,9 +66,6 @@ public class GameController : IGameController
         };
     }
 
-    /// <summary>
-    /// Forsøger at flytte en brik for den aktuelle spiller.
-    /// </summary>
     public bool MovePiece(int pieceId, int diceRoll)
     {
         if (_winnerId != null) return false; // Spillet er slut
@@ -101,22 +85,15 @@ public class GameController : IGameController
                 return false; // Kan ikke flytte ud uden en 6'er
             }
         }
-        else if (piece.Position >= 0)
-        {
-            piece.Position += diceRoll; // Flyt fremad
-        }
         else
         {
-            return false; // Ugyldigt træk
+            piece.Position += diceRoll; // Flyt fremad
         }
 
         CheckWinner(); // Tjek for vinder
         return true;
     }
 
-    /// <summary>
-    /// Tjekker om en spiller har vundet.
-    /// </summary>
     public int? CheckWinner()
     {
         if (_winnerId != null)
@@ -137,15 +114,6 @@ public class GameController : IGameController
         return null; // Ingen vinder endnu
     }
 
-    /// <summary>
-    /// Returnerer ID på vinderen hvis der findes én.
-    /// </summary>
-    public int? GetWinnerId() => _winnerId;
-
-    /// <summary>
-    /// Nulstiller spillet helt: starter forfra.
-    /// Bruges af API til at starte et nyt spil uden at genstarte server.
-    /// </summary>
     public void Reset()
     {
         _currentPlayerIndex = 0;
@@ -155,9 +123,8 @@ public class GameController : IGameController
         {
             foreach (var piece in player.Pieces)
             {
-                piece.Position = -1; // Sæt alle brikker tilbage i hjem
+                piece.Position = -1; // Brikker tilbage til hjem
             }
         }
     }
-
 }
