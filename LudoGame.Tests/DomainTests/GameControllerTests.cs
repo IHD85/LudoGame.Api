@@ -199,4 +199,114 @@ public class GameControllerTests
         Assert.Equal(0, secondWinner); // Vinder må ikke ændres
     }
 
+
+    [Fact]
+    public void RollDice_ShouldReturnValueBetween1And6()
+    {
+        var game = new GameController(4);
+        int roll = game.RollDice();
+        Assert.InRange(roll, 1, 6);
+    }
+
+    [Fact]
+    public void GetValidMoves_ShouldReturnCorrectMoves_WhenDiceIs6()
+    {
+        var game = new GameController(2);
+
+        // Ingen brikker på brættet
+        var validMoves = game.GetValidMoves(6);
+
+        Assert.NotEmpty(validMoves); // Burde kunne flytte ud af hjem
+    }
+
+    [Fact]
+    public void GetValidMoves_ShouldReturnEmpty_WhenDiceIsNot6_AndAllPiecesInHome()
+    {
+        var game = new GameController(2);
+
+        var validMoves = game.GetValidMoves(4);
+
+        Assert.Empty(validMoves); // Kan ikke rykke uden 6'er fra hjem
+    }
+
+    [Fact]
+    public void MovePiece_ShouldMovePiece_WhenValidMove()
+    {
+        var game = new GameController(2);
+
+        bool moved = game.MovePiece(0, 6); // Slår en 6'er og flytter ud
+        Assert.True(moved);
+
+        var board = game.GetBoardStatus();
+        var player = board.Players[0];
+        Assert.Equal(0, player.Pieces[0].Position); // Brikken er nu på felt 0
+    }
+
+    [Fact]
+    public void MovePiece_ShouldNotMove_WhenInvalidMove()
+    {
+        var game = new GameController(2);
+
+        bool moved = game.MovePiece(0, 4); // Kan ikke flytte uden 6'er
+        Assert.False(moved);
+    }
+
+
+    [Fact]
+    public void MovePiece_Should_Kick_Opponent_Home_When_Landing_On_Them()
+    {
+        // Arrange
+        var game = new GameController(2);
+
+        // 🚶‍♂️ Sæt en spiller 1 brik på position 5
+        game.MovePiece(0, 6); // Først få brik ud (slå 6)
+        game.MovePiece(0, 5); // Flyt 5 frem
+
+        // Skift tur til spiller 2
+        game.NextTurn();
+
+        // 🚶‍♂️ Spiller 2 får også sin brik ud
+        game.MovePiece(0, 6); // Slå 6 og ud
+
+        // Flyt spiller 2 brik til position 5 (samme som spiller 1)
+        game.MovePiece(0, 5); // Flyt frem til 5
+
+        // Act
+        var board = game.GetBoardStatus();
+        var player1Piece = board.Players[0].Pieces.First(p => p.Id == 0);
+        var player2Piece = board.Players[1].Pieces.First(p => p.Id == 0);
+
+        // Assert
+        Assert.Equal(-1, player1Piece.Position); // ✅ Spiller 1's brik skal være hjemme
+        Assert.Equal(5, player2Piece.Position);  // ✅ Spiller 2's brik er nu på felt 5
+    }
+
+    [Fact]
+    public void SaveAndLoadGame_ShouldRestoreStateCorrectly()
+    {
+        // Arrange
+        var controller = new GameController(2);
+
+        // Simuler spil (slå brikker ud og flyt)
+        controller.MovePiece(0, 6); // Ud
+        controller.MovePiece(0, 3); // 3 frem
+
+        var savedState = controller.SaveGame();
+
+        var newController = new GameController(2);
+        newController.LoadGame(savedState);
+
+        var loadedBoard = newController.GetBoardStatus();
+
+        // Assert
+        Assert.Equal(savedState.CurrentPlayer, newController.GetCurrentPlayer());
+        Assert.Equal(savedState.WinnerId, newController.CheckWinner());
+
+        var savedPlayer0Piece0 = savedState.Players[0].Pieces.First(p => p.Id == 0);
+        var loadedPlayer0Piece0 = loadedBoard.Players[0].Pieces.First(p => p.Id == 0);
+
+        Assert.Equal(savedPlayer0Piece0.Position, loadedPlayer0Piece0.Position);
+    }
+
+
 }

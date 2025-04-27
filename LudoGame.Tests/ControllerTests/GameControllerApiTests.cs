@@ -1,4 +1,5 @@
 ﻿using LudoGame.Api.Controllers;
+using LudoGame.Api.Dtos;
 using LudoGame.Domain;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
@@ -55,4 +56,68 @@ public class GameControllerApiTests
         // Assert
         Assert.InRange(result, 1, 6);
     }
+
+
+
+    [Fact]
+    public void SaveGame_CallsSaveGameOnController()
+    {
+        // Arrange
+        var mockController = new Mock<IGameController>();
+        var dummyState = new GameStateDto
+        {
+            CurrentPlayer = 0,
+            WinnerId = null,
+            Players = new List<PlayerDto>()
+        };
+        mockController.Setup(x => x.SaveGame()).Returns(dummyState); // 🛠 her!!
+
+        var api = new GameControllerApi(mockController.Object);
+
+        // Act
+        var result = api.SaveGame();
+
+        // Assert
+        var okResult = Assert.IsType<OkObjectResult>(result.Result); // OkObjectResult ✅
+        Assert.IsType<GameStateDto>(okResult.Value); // GameStateDto ✅
+        mockController.Verify(x => x.SaveGame(), Times.Once);
+    }
+
+
+
+
+    [Fact]
+    public void LoadGame_CallsLoadGameOnController()
+    {
+        var mockController = new Mock<IGameController>();
+        var api = new GameControllerApi(mockController.Object);
+
+        var dummyState = new GameStateDto
+        {
+            CurrentPlayer = 0,
+            WinnerId = null,
+            Players = new List<PlayerDto>
+        {
+            new PlayerDto
+            {
+                Id = 0,
+                Color = "Rød",
+                Pieces = new List<PieceDto>
+                {
+                    new PieceDto { Id = 0, Position = 0 },
+                    new PieceDto { Id = 1, Position = -1 },
+                    new PieceDto { Id = 2, Position = -1 },
+                    new PieceDto { Id = 3, Position = -1 }
+                }
+            }
+        }
+        };
+
+        var result = api.LoadGame(dummyState);
+
+        Assert.IsType<OkResult>(result);
+        mockController.Verify(x => x.LoadGame(It.IsAny<GameStateDto>()), Times.Once);
+    }
+
+
 }

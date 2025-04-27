@@ -79,6 +79,33 @@ public class GameControllerApi : ControllerBase
         return Ok();
     }
 
+    [HttpGet("canmove/{playerId}/{diceRoll}")]
+    public ActionResult<bool> CanMove(int playerId, int diceRoll)
+    {
+        return Ok(_gameController.CanMoveAnyPiece(playerId, diceRoll));
+    }
+
+    [HttpGet("validmoves/{diceRoll}")]
+    public ActionResult<List<int>> GetValidMoves(int diceRoll)
+    {
+        return Ok(_gameController.GetValidMoves(diceRoll));
+    }
+
+    [HttpGet("save")]
+    public ActionResult<GameStateDto> SaveGame()
+    {
+        var state = _gameController.SaveGame();
+        return Ok(state);
+    }
+
+    // 🆕 LOAD SPILLET
+    [HttpPost("load")]
+    public IActionResult LoadGame([FromBody] GameStateDto state)
+    {
+        _gameController.LoadGame(state);
+        return Ok();
+    }
+
 
 
 

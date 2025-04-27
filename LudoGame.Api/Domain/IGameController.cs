@@ -11,4 +11,8 @@ public interface IGameController
     bool MovePiece(int pieceId, int diceRoll);
     int? CheckWinner();
     void Reset();
+    public bool CanMoveAnyPiece(int playerId, int diceRoll);
+    List<int> GetValidMoves(int diceRoll);
+    GameStateDto SaveGame();
+    void LoadGame(GameStateDto state);
 }
