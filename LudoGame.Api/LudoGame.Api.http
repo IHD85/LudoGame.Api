@@ -1,0 +1,13 @@
+@LudoGame.Api_HostAddress = https://localhost:7070
+
+GET {{LudoGame.Api_HostAddress}}/api/GameControllerApi/current
+Accept: application/json
+
+###
+
+POST {{LudoGame.Api_HostAddress}}/api/GameControllerApi/next
+###
+
+POST {{LudoGame.Api_HostAddress}}/api/GameControllerApi/roll
+Accept: application/json
+###
