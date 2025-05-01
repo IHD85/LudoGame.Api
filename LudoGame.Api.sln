@@ -3,11 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.10.35201.131
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LudoGame.Api", "LudoGame.Api\LudoGame.Api.csproj", "{1225FFF9-4C02-4DD4-8688-0D41BD75E018}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "LudoGame.Api", "LudoGame.Api\LudoGame.Api.csproj", "{1225FFF9-4C02-4DD4-8688-0D41BD75E018}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LudoFrontend", "LudoFrontend\LudoFrontend.csproj", "{DC3827BA-BE68-407C-97F3-2BD59E805D15}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LudoGame.Tests", "LudoGame.Tests\LudoGame.Tests.csproj", "{A33C71E6-77DD-433F-BA47-958D1235F8AD}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "LudoGame.Tests", "LudoGame.Tests\LudoGame.Tests.csproj", "{A33C71E6-77DD-433F-BA47-958D1235F8AD}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -19,10 +17,6 @@ Global
 		{1225FFF9-4C02-4DD4-8688-0D41BD75E018}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1225FFF9-4C02-4DD4-8688-0D41BD75E018}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1225FFF9-4C02-4DD4-8688-0D41BD75E018}.Release|Any CPU.Build.0 = Release|Any CPU
-		{DC3827BA-BE68-407C-97F3-2BD59E805D15}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{DC3827BA-BE68-407C-97F3-2BD59E805D15}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{DC3827BA-BE68-407C-97F3-2BD59E805D15}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{DC3827BA-BE68-407C-97F3-2BD59E805D15}.Release|Any CPU.Build.0 = Release|Any CPU
 		{A33C71E6-77DD-433F-BA47-958D1235F8AD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{A33C71E6-77DD-433F-BA47-958D1235F8AD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A33C71E6-77DD-433F-BA47-958D1235F8AD}.Release|Any CPU.ActiveCfg = Release|Any CPU
