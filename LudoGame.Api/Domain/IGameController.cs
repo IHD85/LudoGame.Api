@@ -15,4 +15,5 @@ public interface IGameController
     List<int> GetValidMoves(int diceRoll);
     GameStateDto SaveGame();
     void LoadGame(GameStateDto state);
+    int DetermineStartingPlayer();
 }

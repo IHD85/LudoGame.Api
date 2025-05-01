@@ -106,6 +106,15 @@ public class GameControllerApi : ControllerBase
         return Ok();
     }
 
+    /// <summary>
+    /// ✅ NYT: API-endpoint til at finde startspilleren ved at slå med en terning
+    /// Matcher Ludo-reglen: højeste kast starter. Lighed → ny runde.
+    /// </summary>
+    [HttpPost("startplayer")]
+    public ActionResult<int> DetermineStartingPlayer()
+    {
+        return Ok(_gameController.DetermineStartingPlayer());
+    }
 
 
 
