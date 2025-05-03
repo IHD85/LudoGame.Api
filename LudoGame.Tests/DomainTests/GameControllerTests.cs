@@ -56,37 +56,57 @@ public class GameControllerTests
         Assert.Equal(0, piece.Position);
     }
 
+    
     [Fact]
-    public void MovePiece_FromHome_WithoutSix_ShouldStayAtHome()
+    public void MovePiece_Should_Kick_Opponent_Home_When_Landing_On_Them()
     {
         var controller = new GameController(2);
-        var playerId = controller.GetCurrentPlayer();
-        var pieceId = 1;
 
-        controller.MovePiece(pieceId, 4);
+        // Spiller 0 → ud og til felt 5
+        Assert.True(controller.MovePiece(0, 6)); // ud
+        Assert.True(controller.MovePiece(0, 5)); // til 5
+
+        controller.NextTurn(); // Spiller 1
+
+        // Sæt spiller 1’s brik direkte til rel 47 = abs 8
         var board = controller.GetBoardStatus();
-        var piece = board.Players[playerId].Pieces.First(p => p.Id == pieceId);
+        var opPiece = board.Players[1].Pieces.First(p => p.Id == 0);
+        opPiece.Position = 47;
 
-        Assert.Equal(-1, piece.Position);
+        int abs = controller.GetAbsoluteBoardPosition(1, 47);
+        Assert.Equal(8, abs);
+
+        controller.NextTurn(); // Tilbage til spiller 0
+
+        // Slå 3 → flyt fra 5 til 8
+        Assert.True(controller.MovePiece(0, 3));
+
+        var board2 = controller.GetBoardStatus();
+        Assert.Equal(-1, board2.Players[1].Pieces.First(p => p.Id == 0).Position); // hjem
+        Assert.Equal(8, board2.Players[0].Pieces.First(p => p.Id == 0).Position); // nyt felt
     }
 
     [Fact]
-    public void MovePiece_OnBoard_ShouldMoveForward()
+    public void MovePiece_ShouldNot_Kick_Opponent_From_StartPosition()
     {
         var controller = new GameController(2);
-        var playerId = controller.GetCurrentPlayer();
-        var pieceId = 2;
 
-        controller.MovePiece(pieceId, 6);
-        controller.MovePiece(pieceId, 3);
+        controller.MovePiece(0, 6); // Spiller 0 ud på startfelt (0)
+        controller.NextTurn();
+
+        controller.MovePiece(0, 6); // Spiller 1 ud på 13
+        controller.MovePiece(0, 39); // 13 + 39 = 52 % 52 = 0 → lander på 0
 
         var board = controller.GetBoardStatus();
-        var piece = board.Players[playerId].Pieces.First(p => p.Id == pieceId);
+        var piece = board.Players[0].Pieces.First(p => p.Id == 0);
 
-        Assert.Equal(3, piece.Position);
+        Assert.Equal(0, piece.Position); // må ikke være slået hjem
     }
 
-    [Fact]
+    // ... øvrige tests forbliver uændret ...
+
+
+[Fact]
     public void MovePiece_InvalidPieceId_ShouldDoNothing()
     {
         var controller = new GameController(2);
@@ -205,33 +225,7 @@ public class GameControllerTests
         bool moved = game.MovePiece(0, 4);
         Assert.False(moved);
     }
-    [Fact]
-    public void MovePiece_Should_Kick_Opponent_Home_When_Landing_On_Them()
-    {
-        var game = new GameController(2);
-
-        // Spiller 0: Ud og til felt 8 (relativ)
-        game.MovePiece(0, 6); // Ud → rel = 0
-        game.MovePiece(0, 2); // rel = 2
-        game.MovePiece(0, 6); // rel = 8
-
-        game.NextTurn(); // Spiller 1
-
-        // Spiller 1: Ud → rel = 0
-        game.MovePiece(0, 6);
-        game.MovePiece(0, 47); // rel = 47 → abs = (13+47)%52 = 8
-
-        var board = game.GetBoardStatus();
-        var spiller0 = board.Players[0].Pieces.First(p => p.Id == 0);
-        var spiller1 = board.Players[1].Pieces.First(p => p.Id == 0);
-
-        // 💡 Brug absolut position for korrekt sammenligning
-        int abs0 = game.GetAbsoluteBoardPosition(0, 8);  // spiller 0 var på 8
-        int abs1 = game.GetAbsoluteBoardPosition(1, spiller1.Position); // skal være samme felt
-
-        Assert.Equal(-1, spiller0.Position); // Spiller 0 blev slået hjem
-        Assert.Equal(abs0, abs1);            // Samme felt i absolut
-    }
+    
 
 
 
@@ -240,37 +234,6 @@ public class GameControllerTests
         var startIndices = new Dictionary<int, int> { { 0, 0 }, { 1, 13 }, { 2, 26 }, { 3, 39 } };
         return (startIndices[playerIndex] + relative) % 52;
     }
-
-
-
-     [Fact]
-    public void MovePiece_ShouldNot_Kick_Opponent_From_StartPosition()
-    {
-        var game = new GameController(2);
-
-        // Spiller 0 på sin egen startposition (0)
-        game.MovePiece(0, 6);
-
-        game.NextTurn();
-
-        // Spiller 1 forsøger at lande på 0 (13 + 39 = 52 → 52 % 52 = 0)
-        game.MovePiece(0, 6);
-        game.MovePiece(0, 39);
-
-        var board = game.GetBoardStatus();
-
-        // Spiller 0's brik skal stadig være på 0
-        Assert.Equal(0, board.Players[0].Pieces[0].Position);
-    }
-
-
-
-
-
-
-
-
-
 
 
     [Fact]

@@ -13,68 +13,44 @@ public class GameController : IGameController
     private int? _winnerId = null;
     private readonly List<PlayerDto> _players;
     private int _attemptsThisTurn = 0;
-    private readonly int[] _entryToGoal = new int[] { 50, 11, 24, 37 };
-
+    private readonly int[] _entryToGoal = new[] { 50, 11, 24, 37 };
     private readonly Dictionary<int, int> _startIndices = new()
     {
-        { 0, 0 },    // Rød starter på index 0
-        { 1, 13 },   // Grøn
-        { 2, 26 },   // Gul
-        { 3, 39 }    // Blå
+        { 0, 0 }, { 1, 13 }, { 2, 26 }, { 3, 39 }
     };
 
     public GameController(int totalPlayers)
     {
         if (totalPlayers < 2 || totalPlayers > 4)
             throw new ArgumentException("Ludo kræver 2-4 spillere.");
-
         _totalPlayers = totalPlayers;
         var colors = new[] { "Rød", "Grøn", "Blå", "Gul" };
         _players = new List<PlayerDto>();
-
         for (int i = 0; i < totalPlayers; i++)
         {
             _players.Add(new PlayerDto
             {
                 Id = i,
                 Color = colors[i],
-                Pieces = Enumerable.Range(0, 4).Select(pid => new PieceDto
-                {
-                    Id = pid,
-                    Position = -1
-                }).ToList()
+                Pieces = Enumerable.Range(0, 4).Select(pid => new PieceDto { Id = pid, Position = -1 }).ToList()
             });
         }
     }
 
     public int GetCurrentPlayer() => _currentPlayerIndex;
+
     public int RollDice() => Random.Shared.Next(1, 7);
 
     public void NextTurn()
     {
         _attemptsThisTurn = 0;
         if (_winnerId != null) return;
-
-        int activePlayers = _players.Count(p => !HasPlayerWon(p));
-        if (activePlayers <= 1 && _winnerId == null)
-        {
-            var remaining = _players.FirstOrDefault(p => !HasPlayerWon(p));
-            if (remaining != null)
-                _winnerId = remaining.Id;
-            return;
-        }
-
         do
         {
             _currentPlayerIndex = (_currentPlayerIndex + 1) % _totalPlayers;
-        }
-        while (HasPlayerWon(_players[_currentPlayerIndex]));
+        } while (_players[_currentPlayerIndex].Pieces.All(p => p.Position >= 100));
     }
 
-    private bool HasPlayerWon(PlayerDto player)
-    {
-        return player.Pieces.All(p => p.Position >= 100) && player.Pieces.All(p => p.Position != -1);
-    }
 
     public BoardStatusDto GetBoardStatus() => new()
     {
@@ -91,75 +67,87 @@ public class GameController : IGameController
         var piece = currentPlayer.Pieces.FirstOrDefault(p => p.Id == pieceId);
         if (piece == null) return false;
 
+        // Forsøg på at komme ud fra hjem
         if (piece.Position == -1)
         {
             _attemptsThisTurn++;
             if (_attemptsThisTurn <= 3 && diceRoll == 6)
             {
-                int start = _startIndices[_currentPlayerIndex];
-
-                foreach (var opponent in _players.Where(p => p.Id != currentPlayer.Id))
-                {
-                    foreach (var opponentPiece in opponent.Pieces)
-                    {
-                        if (opponentPiece.Position == start)
-                            opponentPiece.Position = -1;
-                    }
-                }
-
-                piece.Position = 0; // relativ startposition for logikken
+                piece.Position = 0;
                 _attemptsThisTurn = 0;
-                CheckWinner();
                 return true;
             }
             return false;
         }
 
-        int newRelativePos;
-        int newAbsolutePos;
-
-        if (piece.Position < 52 && piece.Position + diceRoll >= _entryToGoal[_currentPlayerIndex])
-        {
-            int overshoot = piece.Position + diceRoll - _entryToGoal[_currentPlayerIndex];
-            if (overshoot <= 5)
-            {
-                newRelativePos = 100 + overshoot;
-            }
-            else return false;
-        }
-        else if (piece.Position >= 100)
+        // Bevægelse i målzone
+        if (piece.Position >= 100)
         {
             if (piece.Position + diceRoll <= 105)
-                newRelativePos = piece.Position + diceRoll;
-            else return false;
-        }
-        else
-        {
-            newRelativePos = piece.Position + diceRoll;
-        }
-
-        if (newRelativePos < 52)
-        {
-            newAbsolutePos = GetAbsolutePosition(newRelativePos, _currentPlayerIndex);
-
-            foreach (var opponent in _players.Where(p => p.Id != currentPlayer.Id))
             {
-                foreach (var opponentPiece in opponent.Pieces)
+                piece.Position += diceRoll;
+                return true;
+            }
+            return false;
+        }
+
+        // Bevægelse mod mål (fra hovedruten)
+        int newPos = piece.Position + diceRoll;
+        if (piece.Position < 52 && newPos >= _entryToGoal[_currentPlayerIndex])
+        {
+            int goalStep = newPos - _entryToGoal[_currentPlayerIndex];
+            if (goalStep <= 5)
+            {
+                piece.Position = 100 + goalStep;
+                return true;
+            }
+            return false;
+        }
+
+        // Beregn ny relativ og absolut position
+        int newRelative = piece.Position + diceRoll;
+        int newAbs = GetAbsoluteBoardPosition(_currentPlayerIndex, newRelative);
+
+        // Safe zones må ikke slås hjem
+        bool isSafeZone = _startIndices.Values.Contains(newAbs);
+
+        // Slå modstanderes brikker hjem FØR vi flytter
+        if (!isSafeZone)
+        {
+            foreach (var opponent in _players.Where(p => p.Id != _currentPlayerIndex))
+            {
+                foreach (var op in opponent.Pieces)
                 {
-                    if (opponentPiece.Position >= 0 && opponentPiece.Position < 52)
+                    if (op.Position >= 0 && op.Position < 52)
                     {
-                        int opponentAbsPos = GetAbsolutePosition(opponentPiece.Position, opponent.Id);
-                        if (opponentAbsPos == newAbsolutePos)
-                            opponentPiece.Position = -1;
+                        int opAbs = GetAbsoluteBoardPosition(opponent.Id, op.Position);
+                        if (opAbs == newAbs)
+                        {
+                            op.Position = -1; // slå hjem
+                        }
                     }
                 }
             }
         }
 
-        piece.Position = newRelativePos;
-        CheckWinner();
+        // Flyt spillerens brik
+        piece.Position = newRelative;
         return true;
     }
+
+
+
+
+    public void SetPiecePosition(int playerId, int pieceId, int relativePosition)
+    {
+        var piece = _players[playerId].Pieces.First(p => p.Id == pieceId);
+        piece.Position = relativePosition;
+    }
+
+
+
+
+
 
     private int GetAbsolutePosition(int relativePosition, int playerIndex)
     {
