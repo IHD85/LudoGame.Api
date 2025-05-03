@@ -205,26 +205,73 @@ public class GameControllerTests
         bool moved = game.MovePiece(0, 4);
         Assert.False(moved);
     }
-
     [Fact]
     public void MovePiece_Should_Kick_Opponent_Home_When_Landing_On_Them()
     {
         var game = new GameController(2);
 
-        game.MovePiece(0, 6);
-        game.MovePiece(0, 5);
+        // Spiller 0: Ud og til felt 8 (relativ)
+        game.MovePiece(0, 6); // Ud → rel = 0
+        game.MovePiece(0, 2); // rel = 2
+        game.MovePiece(0, 6); // rel = 8
 
-        game.NextTurn();
+        game.NextTurn(); // Spiller 1
+
+        // Spiller 1: Ud → rel = 0
         game.MovePiece(0, 6);
-        game.MovePiece(0, 5);
+        game.MovePiece(0, 47); // rel = 47 → abs = (13+47)%52 = 8
 
         var board = game.GetBoardStatus();
-        var player1Piece = board.Players[0].Pieces.First(p => p.Id == 0);
-        var player2Piece = board.Players[1].Pieces.First(p => p.Id == 0);
+        var spiller0 = board.Players[0].Pieces.First(p => p.Id == 0);
+        var spiller1 = board.Players[1].Pieces.First(p => p.Id == 0);
 
-        Assert.Equal(-1, player1Piece.Position);
-        Assert.Equal(5, player2Piece.Position);
+        // 💡 Brug absolut position for korrekt sammenligning
+        int abs0 = game.GetAbsoluteBoardPosition(0, 8);  // spiller 0 var på 8
+        int abs1 = game.GetAbsoluteBoardPosition(1, spiller1.Position); // skal være samme felt
+
+        Assert.Equal(-1, spiller0.Position); // Spiller 0 blev slået hjem
+        Assert.Equal(abs0, abs1);            // Samme felt i absolut
     }
+
+
+
+    private int GetAbsolutePosition(int relative, int playerIndex)
+    {
+        var startIndices = new Dictionary<int, int> { { 0, 0 }, { 1, 13 }, { 2, 26 }, { 3, 39 } };
+        return (startIndices[playerIndex] + relative) % 52;
+    }
+
+
+
+     [Fact]
+    public void MovePiece_ShouldNot_Kick_Opponent_From_StartPosition()
+    {
+        var game = new GameController(2);
+
+        // Spiller 0 på sin egen startposition (0)
+        game.MovePiece(0, 6);
+
+        game.NextTurn();
+
+        // Spiller 1 forsøger at lande på 0 (13 + 39 = 52 → 52 % 52 = 0)
+        game.MovePiece(0, 6);
+        game.MovePiece(0, 39);
+
+        var board = game.GetBoardStatus();
+
+        // Spiller 0's brik skal stadig være på 0
+        Assert.Equal(0, board.Players[0].Pieces[0].Position);
+    }
+
+
+
+
+
+
+
+
+
+
 
     [Fact]
     public void SaveAndLoadGame_ShouldRestoreStateCorrectly()

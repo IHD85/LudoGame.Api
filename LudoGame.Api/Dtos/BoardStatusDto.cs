@@ -16,4 +16,6 @@ public class PlayerDto
 public class BoardStatusDto
 {
     public List<PlayerDto> Players { get; set; } = new();
+    public int CurrentPlayer { get; set; }
+    public int? WinnerId { get; set; }
 }

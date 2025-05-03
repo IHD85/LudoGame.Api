@@ -4,22 +4,24 @@ using System.Numerics;
 using System.Collections.Generic;
 using System.Linq;
 
-
 namespace LudoGame.Domain;
 
-/// <summary>
-/// GameController styrer spillets gang: aktuel spiller, terningekast, flytning og vindertjek.
-/// Opbygget efter SOLID-principper:
-/// - S: Single Responsibility (håndterer kun spil-logik)
-/// - D: Dependency Inversion (bruges via IGameController-interface i API)
-/// </summary>
 public class GameController : IGameController
 {
     private int _currentPlayerIndex = 0;
     private readonly int _totalPlayers;
     private int? _winnerId = null;
     private readonly List<PlayerDto> _players;
-    private int _attemptsThisTurn = 0; // Antal forsøg fra hjem i denne tur
+    private int _attemptsThisTurn = 0;
+    private readonly int[] _entryToGoal = new int[] { 50, 11, 24, 37 };
+
+    private readonly Dictionary<int, int> _startIndices = new()
+    {
+        { 0, 0 },    // Rød starter på index 0
+        { 1, 13 },   // Grøn
+        { 2, 26 },   // Gul
+        { 3, 39 }    // Blå
+    };
 
     public GameController(int totalPlayers)
     {
@@ -46,45 +48,22 @@ public class GameController : IGameController
     }
 
     public int GetCurrentPlayer() => _currentPlayerIndex;
+    public int RollDice() => Random.Shared.Next(1, 7);
 
-    /// <summary>
-    /// Går videre til næste spiller.
-    /// Skipper spillere der har vundet (alle brikker i mål).
-    /// Hvis kun én spiller er tilbage, afsluttes spillet automatisk.
-    /// </summary>
-
-    /// <summary>
-    /// Slår en terning og returnerer et tal mellem 1 og 6.
-    /// Bruges både i spillets gang og i test.
-    /// </summary>
-    public int RollDice()
-    {
-        return Random.Shared.Next(1, 7);
-    }
-
-    /// <summary>
-    /// Går videre til næste spiller.
-    /// Skipper spillere der har vundet (alle brikker i mål).
-    /// Hvis kun én spiller er tilbage, sættes de automatisk som vinder.
-    /// </summary>
     public void NextTurn()
     {
-        _attemptsThisTurn = 0; // 🔁 Nulstil forsøg ved ny tur
-        if (_winnerId != null) return; // Spillet er slut
+        _attemptsThisTurn = 0;
+        if (_winnerId != null) return;
 
         int activePlayers = _players.Count(p => !HasPlayerWon(p));
-
-        // ✅ Hvis kun én spiller er tilbage og ingen vinder sat endnu
         if (activePlayers <= 1 && _winnerId == null)
         {
             var remaining = _players.FirstOrDefault(p => !HasPlayerWon(p));
             if (remaining != null)
                 _winnerId = remaining.Id;
-
             return;
         }
 
-        // ✅ Find næste aktive spiller
         do
         {
             _currentPlayerIndex = (_currentPlayerIndex + 1) % _totalPlayers;
@@ -92,22 +71,17 @@ public class GameController : IGameController
         while (HasPlayerWon(_players[_currentPlayerIndex]));
     }
 
-
-    /// <summary>
-    /// Tjekker om en spiller har vundet (alle brikker i mål og ikke i hjem).
-    /// Bruges internt til skip-logik i NextTurn.
-    /// </summary>
     private bool HasPlayerWon(PlayerDto player)
     {
         return player.Pieces.All(p => p.Position >= 100) && player.Pieces.All(p => p.Position != -1);
     }
 
-
-
-    public BoardStatusDto GetBoardStatus()
+    public BoardStatusDto GetBoardStatus() => new()
     {
-        return new BoardStatusDto { Players = _players };
-    }
+        Players = _players,
+        CurrentPlayer = _currentPlayerIndex,
+        WinnerId = _winnerId
+    };
 
     public bool MovePiece(int pieceId, int diceRoll)
     {
@@ -119,37 +93,82 @@ public class GameController : IGameController
 
         if (piece.Position == -1)
         {
-            _attemptsThisTurn++; // 📌 Tæl hvert forsøg fra hjem
-
+            _attemptsThisTurn++;
             if (_attemptsThisTurn <= 3 && diceRoll == 6)
             {
-                piece.Position = 0;
-                _attemptsThisTurn = 0; // Nulstil ved succes
+                int start = _startIndices[_currentPlayerIndex];
+
+                foreach (var opponent in _players.Where(p => p.Id != currentPlayer.Id))
+                {
+                    foreach (var opponentPiece in opponent.Pieces)
+                    {
+                        if (opponentPiece.Position == start)
+                            opponentPiece.Position = -1;
+                    }
+                }
+
+                piece.Position = 0; // relativ startposition for logikken
+                _attemptsThisTurn = 0;
                 CheckWinner();
                 return true;
             }
-
-            return false; // Kan ikke komme ud
+            return false;
         }
-        else if (piece.Position >= 0)
-        {
-            piece.Position += diceRoll;
 
-            // ✅ REGEL: Slå modstander hjem
+        int newRelativePos;
+        int newAbsolutePos;
+
+        if (piece.Position < 52 && piece.Position + diceRoll >= _entryToGoal[_currentPlayerIndex])
+        {
+            int overshoot = piece.Position + diceRoll - _entryToGoal[_currentPlayerIndex];
+            if (overshoot <= 5)
+            {
+                newRelativePos = 100 + overshoot;
+            }
+            else return false;
+        }
+        else if (piece.Position >= 100)
+        {
+            if (piece.Position + diceRoll <= 105)
+                newRelativePos = piece.Position + diceRoll;
+            else return false;
+        }
+        else
+        {
+            newRelativePos = piece.Position + diceRoll;
+        }
+
+        if (newRelativePos < 52)
+        {
+            newAbsolutePos = GetAbsolutePosition(newRelativePos, _currentPlayerIndex);
+
             foreach (var opponent in _players.Where(p => p.Id != currentPlayer.Id))
             {
-                var hitPiece = opponent.Pieces.FirstOrDefault(p => p.Position == piece.Position);
-                if (hitPiece != null)
+                foreach (var opponentPiece in opponent.Pieces)
                 {
-                    hitPiece.Position = -1;
+                    if (opponentPiece.Position >= 0 && opponentPiece.Position < 52)
+                    {
+                        int opponentAbsPos = GetAbsolutePosition(opponentPiece.Position, opponent.Id);
+                        if (opponentAbsPos == newAbsolutePos)
+                            opponentPiece.Position = -1;
+                    }
                 }
             }
-
-            CheckWinner();
-            return true;
         }
 
-        return false;
+        piece.Position = newRelativePos;
+        CheckWinner();
+        return true;
+    }
+
+    private int GetAbsolutePosition(int relativePosition, int playerIndex)
+    {
+        return (_startIndices[playerIndex] + relativePosition) % 52;
+    }
+
+    private bool IsStartPosition(int position)
+    {
+        return _startIndices.Values.Contains(position);
     }
 
     public int? CheckWinner()
@@ -167,7 +186,6 @@ public class GameController : IGameController
                 return _winnerId;
             }
         }
-
         return null;
     }
 
@@ -175,10 +193,13 @@ public class GameController : IGameController
     {
         _currentPlayerIndex = 0;
         _winnerId = null;
+        _attemptsThisTurn = 0;
         foreach (var player in _players)
         {
             foreach (var piece in player.Pieces)
+            {
                 piece.Position = -1;
+            }
         }
     }
 
@@ -189,12 +210,10 @@ public class GameController : IGameController
 
         foreach (var piece in player.Pieces)
         {
-            if (piece.Position == -1 && diceRoll == 6)
-                return true;
-            if (piece.Position >= 0 && piece.Position + diceRoll <= 100)
-                return true;
+            if (piece.Position == -1 && diceRoll == 6) return true;
+            if (piece.Position >= 0 && piece.Position < 100) return true;
+            if (piece.Position >= 100 && piece.Position + diceRoll <= 105) return true;
         }
-
         return false;
     }
 
@@ -207,22 +226,20 @@ public class GameController : IGameController
         {
             if (piece.Position == -1 && diceRoll == 6)
                 validPieceIds.Add(piece.Id);
-            else if (piece.Position >= 0)
+            else if (piece.Position >= 0 && piece.Position < 100)
+                validPieceIds.Add(piece.Id);
+            else if (piece.Position >= 100 && piece.Position + diceRoll <= 105)
                 validPieceIds.Add(piece.Id);
         }
-
         return validPieceIds;
     }
 
-    public GameStateDto SaveGame()
+    public GameStateDto SaveGame() => new()
     {
-        return new GameStateDto
-        {
-            CurrentPlayer = _currentPlayerIndex,
-            WinnerId = _winnerId,
-            Players = _players
-        };
-    }
+        CurrentPlayer = _currentPlayerIndex,
+        WinnerId = _winnerId,
+        Players = _players
+    };
 
     public void LoadGame(GameStateDto state)
     {
@@ -235,14 +252,9 @@ public class GameController : IGameController
         _winnerId = state.WinnerId;
     }
 
-    /// <summary>
-    /// ✅ NYT: Find startspiller – højeste slag starter, lighed → ny runde kun for dem
-    /// SOLID: SRP + testbar metode. Matcher regler og eksamenskrav.
-    /// </summary>
     public int DetermineStartingPlayer()
     {
         var contenders = _players.Select(p => p.Id).ToList();
-
         while (contenders.Count > 1)
         {
             var rolls = new Dictionary<int, int>();
@@ -252,49 +264,39 @@ public class GameController : IGameController
             {
                 int roll = Random.Shared.Next(1, 7);
                 rolls[id] = roll;
-                if (roll > highestRoll)
-                    highestRoll = roll;
+                if (roll > highestRoll) highestRoll = roll;
             }
 
-            contenders = rolls
-                .Where(kv => kv.Value == highestRoll)
-                .Select(kv => kv.Key)
-                .ToList();
+            contenders = rolls.Where(kv => kv.Value == highestRoll).Select(kv => kv.Key).ToList();
         }
 
         _currentPlayerIndex = contenders.First();
         return _currentPlayerIndex;
     }
 
-    /// <summary>
-    /// Tjekker om aktuel spiller kan rykke mindst én brik med given slag.
-    /// </summary>
     private bool CanMoveAnyPieceForCurrentPlayer(int diceRoll)
     {
         var player = _players[_currentPlayerIndex];
         foreach (var piece in player.Pieces)
         {
-            if (piece.Position == -1 && diceRoll == 6)
-                return true;
-
-            if (piece.Position >= 0 && piece.Position + diceRoll <= 100)
-                return true;
+            if (piece.Position == -1 && diceRoll == 6) return true;
+            if (piece.Position >= 0 && piece.Position < 100) return true;
+            if (piece.Position >= 100 && piece.Position + diceRoll <= 105) return true;
         }
         return false;
     }
 
-    /// <summary>
-    /// Behandler resultatet af et kast, uden at flytte.
-    /// Hvis ingen brikker kan rykke, og slaget ikke er 6 → skift tur.
-    /// </summary>
     public void HandleRollResult(int diceRoll)
     {
         if (!CanMoveAnyPieceForCurrentPlayer(diceRoll) && diceRoll != 6)
         {
-            NextTurn(); // ❌ Ingen mulighed for ryk → mister tur
+            NextTurn();
         }
-        // 🎲 Hvis man slog en 6’er, får man slå igen (intet sker her)
+    }
+
+    public int GetAbsoluteBoardPosition(int playerId, int relativePos)
+    {
+        return (_startIndices[playerId] + relativePos) % 52;
     }
 
 }
-
