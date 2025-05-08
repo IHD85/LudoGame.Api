@@ -3,6 +3,9 @@ using System.IO.Pipelines;
 using System.Numerics;
 using System.Collections.Generic;
 using System.Linq;
+using LudoGame.Domain.Enums;
+
+
 
 namespace LudoGame.Domain;
 
@@ -24,7 +27,7 @@ public class GameController : IGameController
         if (totalPlayers < 2 || totalPlayers > 4)
             throw new ArgumentException("Ludo kræver 2-4 spillere.");
         _totalPlayers = totalPlayers;
-        var colors = new[] { "Rød", "Grøn", "Blå", "Gul" };
+        var colors = new[] { "Rød", "Grøn", "Gul", "Blå" };
         _players = new List<PlayerDto>();
         for (int i = 0; i < totalPlayers; i++)
         {
@@ -59,25 +62,25 @@ public class GameController : IGameController
         WinnerId = _winnerId
     };
 
-    public bool MovePiece(int pieceId, int diceRoll)
+    public MoveResult MovePiece(int pieceId, int diceRoll)
     {
-        if (_winnerId != null) return false;
+        if (_winnerId != null) return MoveResult.Invalid;
 
         var currentPlayer = _players[_currentPlayerIndex];
         var piece = currentPlayer.Pieces.FirstOrDefault(p => p.Id == pieceId);
-        if (piece == null) return false;
+        if (piece == null) return MoveResult.Invalid;
 
         // Forsøg på at komme ud fra hjem
+        _attemptsThisTurn++;
         if (piece.Position == -1)
         {
-            _attemptsThisTurn++;
             if (_attemptsThisTurn <= 3 && diceRoll == 6)
             {
                 piece.Position = 0;
                 _attemptsThisTurn = 0;
-                return true;
+                return MoveResult.MovedAndExtraTurn;
             }
-            return false;
+            return MoveResult.Invalid;
         }
 
         // Bevægelse i målzone
@@ -86,9 +89,9 @@ public class GameController : IGameController
             if (piece.Position + diceRoll <= 105)
             {
                 piece.Position += diceRoll;
-                return true;
+                return diceRoll == 6 ? MoveResult.MovedAndExtraTurn : MoveResult.Moved;
             }
-            return false;
+            return MoveResult.Invalid;
         }
 
         // Bevægelse mod mål (fra hovedruten)
@@ -99,19 +102,32 @@ public class GameController : IGameController
             if (goalStep <= 5)
             {
                 piece.Position = 100 + goalStep;
-                return true;
+                return diceRoll == 6 ? MoveResult.MovedAndExtraTurn : MoveResult.Moved;
             }
-            return false;
+            return MoveResult.Invalid;
         }
 
         // Beregn ny relativ og absolut position
         int newRelative = piece.Position + diceRoll;
         int newAbs = GetAbsoluteBoardPosition(_currentPlayerIndex, newRelative);
 
+        // ❗ Tjek om egen brik blokerer
+        foreach (var other in currentPlayer.Pieces.Where(p => p.Id != pieceId))
+        {
+            if (other.Position >= 0 && other.Position < 52)
+            {
+                int otherAbs = GetAbsoluteBoardPosition(_currentPlayerIndex, other.Position);
+                if (otherAbs == newAbs)
+                {
+                    return MoveResult.Invalid; // feltet er optaget af egen brik
+                }
+            }
+        }
+
         // Safe zones må ikke slås hjem
         bool isSafeZone = _startIndices.Values.Contains(newAbs);
 
-        // Slå modstanderes brikker hjem FØR vi flytter
+        // Slå modstandere hjem
         if (!isSafeZone)
         {
             foreach (var opponent in _players.Where(p => p.Id != _currentPlayerIndex))
@@ -132,8 +148,10 @@ public class GameController : IGameController
 
         // Flyt spillerens brik
         piece.Position = newRelative;
-        return true;
+        return diceRoll == 6 ? MoveResult.MovedAndExtraTurn : MoveResult.Moved;
     }
+
+
 
 
 
@@ -182,14 +200,33 @@ public class GameController : IGameController
         _currentPlayerIndex = 0;
         _winnerId = null;
         _attemptsThisTurn = 0;
+
+        // Reset ALLE brikker korrekt til -1 (hjem)
         foreach (var player in _players)
         {
-            foreach (var piece in player.Pieces)
+            for (int i = 0; i < player.Pieces.Count; i++)
             {
-                piece.Position = -1;
+                player.Pieces[i].Position = -1;
             }
         }
+
+        // 👇 vigtig: fjern alle eksisterende spillere og lav dem på ny
+        var colors = new[] { "Rød", "Grøn", "Gul", "Blå" };
+        for (int i = 0; i < _players.Count; i++)
+        {
+            _players[i] = new PlayerDto
+            {
+                Id = i,
+                Color = colors[i],
+                Pieces = Enumerable.Range(0, 4).Select(pid => new PieceDto
+                {
+                    Id = pid,
+                    Position = -1
+                }).ToList()
+            };
+        }
     }
+
 
     public bool CanMoveAnyPiece(int playerId, int diceRoll)
     {
@@ -287,4 +324,5 @@ public class GameController : IGameController
         return (_startIndices[playerId] + relativePos) % 52;
     }
 
+    
 }

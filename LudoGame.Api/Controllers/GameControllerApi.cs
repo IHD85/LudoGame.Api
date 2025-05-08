@@ -1,5 +1,6 @@
 ﻿using LudoGame.Api.Dtos;
 using LudoGame.Domain;
+using LudoGame.Domain.Enums;
 using Microsoft.AspNetCore.Mvc;
 
 namespace LudoGame.Api.Controllers;
@@ -59,11 +60,12 @@ public class GameControllerApi : ControllerBase
     /// Flytter en brik for den aktuelle spiller baseret på slaget.
     /// </summary>
     [HttpPost("move/{pieceId:int}")]
-    public ActionResult<bool> MovePiece(int pieceId, [FromQuery] int dice)
+    public ActionResult<MoveResult> MovePiece(int pieceId, [FromQuery] int dice)
     {
-        var success = _gameController.MovePiece(pieceId, dice);
-        return Ok(success);
+        var result = _gameController.MovePiece(pieceId, dice);
+        return Ok(result); // 👈 returnér enum direkte (bliver sendt som tal)
     }
+
     [HttpGet("winner")]
     public ActionResult<int?> GetWinner()
     {

@@ -1,4 +1,5 @@
 ﻿using LudoGame.Domain;
+using LudoGame.Domain.Enums;
 using Reqnroll;
 using Xunit;
 
@@ -11,7 +12,7 @@ public class MovePieceSteps
     private int _pieceId;
     private int _opponentPieceId;
     private int _diceRoll;
-    private bool _moveResult;
+    private MoveResult _moveResult;
 
     [Given("en spiller har en brik i hjemmet")]
     public void GivenEnSpillerHarEnBrikIHjemmet()
@@ -39,6 +40,7 @@ public class MovePieceSteps
     {
         var piece = _game!.GetBoardStatus().Players[0].Pieces.First(p => p.Id == _pieceId);
         Assert.Equal(0, piece.Position);
+        Assert.Equal(MoveResult.MovedAndExtraTurn, _moveResult);
     }
 
     [Then("brikken forbliver i hjemmet")]
@@ -46,6 +48,7 @@ public class MovePieceSteps
     {
         var piece = _game!.GetBoardStatus().Players[0].Pieces.First(p => p.Id == _pieceId);
         Assert.Equal(-1, piece.Position);
+        Assert.Equal(MoveResult.Invalid, _moveResult);
     }
 
     [Given("en spiller har en brik på felt {int}")]
@@ -61,6 +64,7 @@ public class MovePieceSteps
     {
         var piece = _game!.GetBoardStatus().Players[0].Pieces.First(p => p.Id == _pieceId);
         Assert.Equal(felt, piece.Position);
+        Assert.Equal(MoveResult.Moved, _moveResult);
     }
 
     [Given("en modstander har en brik på felt 8")]
@@ -98,6 +102,7 @@ public class MovePieceSteps
         var piece = _game!.GetBoardStatus().Players[0].Pieces.First(p => p.Id == _pieceId);
         int abs = _game!.GetAbsoluteBoardPosition(0, piece.Position);
         Assert.Equal(8, abs);
+        Assert.Equal(MoveResult.Moved, _moveResult);
     }
 
     [Given("en spiller prøver at flytte en ugyldig brik")]
@@ -117,13 +122,6 @@ public class MovePieceSteps
     [Then("spillets tilstand ændres ikke")]
     public void ThenSpilletsTilstandAEndresIkke()
     {
-        Assert.False(_moveResult);
+        Assert.Equal(MoveResult.Invalid, _moveResult);
     }
-
-
-
-
-
-
-
 }

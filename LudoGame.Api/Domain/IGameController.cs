@@ -1,4 +1,5 @@
 ﻿using LudoGame.Api.Dtos;
+using LudoGame.Domain.Enums;
 
 namespace LudoGame.Domain;
 
@@ -8,7 +9,8 @@ public interface IGameController
     void NextTurn();
     int RollDice();
     BoardStatusDto GetBoardStatus();
-    bool MovePiece(int pieceId, int diceRoll);
+    MoveResult MovePiece(int pieceId, int diceRoll);
+
     int? CheckWinner();
     void Reset();
     public bool CanMoveAnyPiece(int playerId, int diceRoll);
@@ -16,4 +18,5 @@ public interface IGameController
     GameStateDto SaveGame();
     void LoadGame(GameStateDto state);
     int DetermineStartingPlayer();
+
 }
