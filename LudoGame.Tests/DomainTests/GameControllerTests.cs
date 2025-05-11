@@ -36,6 +36,8 @@ public class GameControllerTests
         Assert.Equal(0, controller.GetCurrentPlayer());
     }
 
+    // 💬 DDT (Data-Driven Test): Samme test køres automatisk med flere inputs (1 og 5)
+    // 💬 Tester at konstruktøren smider ArgumentException hvis spillerantallet er ugyldigt
     [Theory]
     [InlineData(1)]
     [InlineData(5)]
@@ -113,7 +115,7 @@ public class GameControllerTests
     // ... øvrige tests forbliver uændret ...
 
 
-[Fact]
+    [Fact]
     public void MovePiece_InvalidPieceId_ShouldDoNothing()
     {
         var controller = new GameController(2);

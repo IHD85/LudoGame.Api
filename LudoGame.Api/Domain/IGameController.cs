@@ -3,7 +3,8 @@ using LudoGame.Domain.Enums;
 
 namespace LudoGame.Domain;
 
-public interface IGameController
+public interface IGameController // 💬 DIP: GameControllerApi afhænger af IGameController (interface) – ikke den konkrete GameController
+
 {
     int GetCurrentPlayer();
     void NextTurn();

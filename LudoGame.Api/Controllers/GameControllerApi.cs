@@ -5,27 +5,28 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace LudoGame.Api.Controllers;
 
-/// <summary>
-/// API-controller der eksponerer GameController via HTTP.
-/// Viser Dependency Injection og adskillelse af ansvar (S og D i SOLID).
-/// </summary>
+// <summary>
+// API-controller der eksponerer GameController via HTTP.
+// Viser Dependency Injection og adskillelse af ansvar (S og D i SOLID).
+// </summary>
 [ApiController]
 [Route("api/[controller]")]
 public class GameControllerApi : ControllerBase
 {
     private readonly IGameController _gameController;
 
-    /// <summary>
-    /// DI-injektion af GameController (kan udskiftes med mock i tests).
-    /// </summary>
+    // <summary>
+    // DI-injektion af GameController (kan udskiftes med mock i tests).
+    // // 💬 DIP: Bruger interface IGameController (løst koblet og testbart)
+    // </summary>
     public GameControllerApi(IGameController gameController)
     {
         _gameController = gameController;
     }
 
-    /// <summary>
-    /// Henter den aktuelle spiller (0-baseret).
-    /// </summary>
+    // <summary>
+    // Henter den aktuelle spiller (0-baseret).
+    // </summary>
     [HttpGet("current")]
     public ActionResult<int> GetCurrentPlayer()
     {
@@ -33,9 +34,9 @@ public class GameControllerApi : ControllerBase
     }
 
 
-    /// <summary>
-    /// Skifter til næste spiller.
-    /// </summary>
+    // <summary>
+    // Skifter til næste spiller.
+    // </summary>
     [HttpPost("next")]
     public IActionResult NextTurn()
     {
@@ -43,9 +44,9 @@ public class GameControllerApi : ControllerBase
         return Ok();
     }
 
-    /// <summary>
-    /// Slår med en terning og returnerer resultatet (1-6).
-    /// </summary>
+    // <summary>
+    // Slår med en terning og returnerer resultatet (1-6).
+    // </summary>
     [HttpPost("roll")]
     public ActionResult<int> RollDice()
     {
@@ -56,9 +57,10 @@ public class GameControllerApi : ControllerBase
     {
         return Ok(_gameController.GetBoardStatus());
     }
-    /// <summary>
-    /// Flytter en brik for den aktuelle spiller baseret på slaget.
-    /// </summary>
+    // <summary>
+    // Flytter en brik for den aktuelle spiller baseret på slaget.
+    // 💬 SRP: Hver endpoint-metode har kun ét ansvar – at kalde domain-logik
+    // </summary>
     [HttpPost("move/{pieceId:int}")]
     public ActionResult<MoveResult> MovePiece(int pieceId, [FromQuery] int dice)
     {
@@ -71,9 +73,9 @@ public class GameControllerApi : ControllerBase
     {
         return Ok(_gameController.CheckWinner());
     }
-    /// <summary>
-    /// API-endpoint til at nulstille spillet.
-    /// </summary>
+    // <summary>
+    // API-endpoint til at nulstille spillet.
+    // </summary>
     [HttpPost("reset")]
     public IActionResult ResetGame()
     {
@@ -108,10 +110,10 @@ public class GameControllerApi : ControllerBase
         return Ok();
     }
 
-    /// <summary>
-    /// ✅ NYT: API-endpoint til at finde startspilleren ved at slå med en terning
-    /// Matcher Ludo-reglen: højeste kast starter. Lighed → ny runde.
-    /// </summary>
+    // <summary>
+    // ✅ NYT: API-endpoint til at finde startspilleren ved at slå med en terning
+    // Matcher Ludo-reglen: højeste kast starter. Lighed → ny runde.
+    // </summary>
     [HttpPost("startplayer")]
     public ActionResult<int> DetermineStartingPlayer()
     {

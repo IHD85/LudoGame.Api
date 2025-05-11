@@ -4,6 +4,7 @@ public class PieceDto
 {
     public int Id { get; set; }
     public int Position { get; set; } // -1 = i hjem, 0+ = på brættet
+    public int? AbsolutePosition { get; set; }
 }
 
 public class PlayerDto

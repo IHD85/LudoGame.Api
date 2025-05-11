@@ -9,7 +9,7 @@ using LudoGame.Domain.Enums;
 
 namespace LudoGame.Domain;
 
-public class GameController : IGameController
+public class GameController : IGameController // 👉 DIP: afhænger af interface, ikke konkret klasse
 {
     private int _currentPlayerIndex = 0;
     private readonly int _totalPlayers;
@@ -42,8 +42,9 @@ public class GameController : IGameController
 
     public int GetCurrentPlayer() => _currentPlayerIndex;
 
-    public int RollDice() => Random.Shared.Next(1, 7);
+    public int RollDice() => Random.Shared.Next(1, 7); // 👉 SRP: kun ansvar for at generere slag
 
+    //🏆 Vinder bliver sprunget over i tur
     public void NextTurn()
     {
         _attemptsThisTurn = 0;
@@ -55,13 +56,36 @@ public class GameController : IGameController
     }
 
 
-    public BoardStatusDto GetBoardStatus() => new()
+    public BoardStatusDto GetBoardStatus()
     {
-        Players = _players,
-        CurrentPlayer = _currentPlayerIndex,
-        WinnerId = _winnerId
-    };
+        // 💡 Beregn AbsolutePosition for alle brikker
+        foreach (var player in _players)
+        {
+            foreach (var piece in player.Pieces)
+            {
+                if (piece.Position >= 0 && piece.Position < 52)
+                {
+                    piece.AbsolutePosition = GetAbsoluteBoardPosition(player.Id, piece.Position);
+                }
+                else
+                {
+                    piece.AbsolutePosition = null; // hjem (-1) eller målzone (100+)
+                }
+            }
+        }
 
+        return new BoardStatusDto
+        {
+            Players = _players,
+            CurrentPlayer = _currentPlayerIndex,
+            WinnerId = _winnerId
+        };
+    }
+
+
+
+    // 💬 OCP: Metoden er åben for udvidelse(flere regler kan tilføjes som ekstra checks),
+    // men lukket for ændring af eksisterende logik.
     public MoveResult MovePiece(int pieceId, int diceRoll)
     {
         if (_winnerId != null) return MoveResult.Invalid;
@@ -69,7 +93,7 @@ public class GameController : IGameController
         var currentPlayer = _players[_currentPlayerIndex];
         var piece = currentPlayer.Pieces.FirstOrDefault(p => p.Id == pieceId);
         if (piece == null) return MoveResult.Invalid;
-
+        //🏠 Maks 3 forsøg for at komme ud fra hjem
         // Forsøg på at komme ud fra hjem
         _attemptsThisTurn++;
         if (piece.Position == -1)
@@ -82,7 +106,7 @@ public class GameController : IGameController
             }
             return MoveResult.Invalid;
         }
-
+        //🎯 Ekstra slag ved 6’er
         // Bevægelse i målzone
         if (piece.Position >= 100)
         {
@@ -155,7 +179,7 @@ public class GameController : IGameController
 
 
 
-
+    // 💬 SRP: Metoden har ét ansvar – at sætte positionen for en bestemt brik
     public void SetPiecePosition(int playerId, int pieceId, int relativePosition)
     {
         var piece = _players[playerId].Pieces.First(p => p.Id == pieceId);
@@ -177,6 +201,7 @@ public class GameController : IGameController
         return _startIndices.Values.Contains(position);
     }
 
+    //🕹️ Spillet slutter når 1 spiller er tilbage
     public int? CheckWinner()
     {
         if (_winnerId != null) return _winnerId;
@@ -195,7 +220,7 @@ public class GameController : IGameController
         return null;
     }
 
-    public void Reset()
+    public void Reset() // 👉 SRP: reset-logik er tydeligt adskilt – nem at teste og ændre
     {
         _currentPlayerIndex = 0;
         _winnerId = null;
@@ -277,6 +302,10 @@ public class GameController : IGameController
         _winnerId = state.WinnerId;
     }
 
+
+    // 💬 OCP: her kan nemt udvide reglerne for startspiller (fx lavere får straf),
+    // uden at ændre eksisterende loop eller logikstruktur.
+    //🎲 Højeste slag starter
     public int DetermineStartingPlayer()
     {
         var contenders = _players.Select(p => p.Id).ToList();
@@ -311,6 +340,10 @@ public class GameController : IGameController
         return false;
     }
 
+
+    // 💬 OCP: Let at tilføje ny regel uden at ændre eksisterende kode
+    // 💬 REGEL: Ingen nye forsøg gives efter hjemsendelse – spiller mister tur hvis ingen brikker kan flyttes
+    // 💬 REGEL: Tur springes over hvis ingen gyldige træk og slag ≠ 6
     public void HandleRollResult(int diceRoll)
     {
         if (!CanMoveAnyPieceForCurrentPlayer(diceRoll) && diceRoll != 6)
