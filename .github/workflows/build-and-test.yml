@@ -1,0 +1,30 @@
+name: CI/CD for Ludo
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Tjek kode ud
+      uses: actions/checkout@v3
+
+    - name: Installer .NET 8
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Gendan NuGet-pakker
+      run: dotnet restore
+
+    - name: Byg projekt
+      run: dotnet build --no-restore
+
+    - name: Kør tests
+      run: dotnet test --no-build --verbosity normal
