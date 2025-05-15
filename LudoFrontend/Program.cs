@@ -9,7 +9,7 @@ builder.Services.AddRazorComponents()
 // Add named HttpClient to connect to API
 builder.Services.AddHttpClient("LudoApi", client =>
 {
-    client.BaseAddress = new Uri("https://localhost:7070/");
+    client.BaseAddress = new Uri("https://localhost:8002");
 });
 
 var app = builder.Build();
