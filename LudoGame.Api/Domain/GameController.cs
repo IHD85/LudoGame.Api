@@ -1,6 +1,8 @@
 ﻿using LudoGame.Api.Dtos;
+using LudoGame.Api.Models;
 using System.IO.Pipelines;
 using System.Numerics;
+
 
 
 
@@ -14,6 +16,12 @@ namespace LudoGame.Domain;
 /// </summary>
 public class GameController : IGameController
 {
+    private readonly Player _player;
+    private readonly TurnManager _turnManager;
+    private readonly Dice _dice;
+    private readonly Move _move;
+    private readonly Winner _winner;
+    private readonly GameState _gameState;
     private int _currentPlayerIndex = 0; // Holder styr på hvem der har tur
     private readonly int _totalPlayers; // Antal spillere
     private int? _winnerId = null; // Vinderens ID hvis spillet er slut
@@ -28,6 +36,7 @@ public class GameController : IGameController
             throw new ArgumentException("Ludo kræver 2-4 spillere.");
 
         _totalPlayers = totalPlayers;
+        _move = new Move();
 
         var colors = new[] { "Rød", "Grøn", "Blå", "Gul" };
         _players = new List<PlayerDto>();
@@ -76,53 +85,18 @@ public class GameController : IGameController
 
     public bool MovePiece(int pieceId, int diceRoll)
     {
-        if (_winnerId != null) return false; // Spillet er slut
+        if (_winnerId != null) return false; // Game over
 
         var currentPlayer = _players[_currentPlayerIndex];
-        var piece = currentPlayer.Pieces.FirstOrDefault(p => p.Id == pieceId);
-        if (piece == null) return false; // Brik findes ikke
+        // Delegate to Move class
+        var success = _move.TryMovePiece(currentPlayer, pieceId, diceRoll, _players);
 
-        if (piece.Position == -1)
+        if (success)
         {
-            if (diceRoll == 6)
-            {
-                piece.Position = 0; // Flyt ud fra hjem
-                CheckWinner();
-                return true;
-            }
-            else
-            {
-                return false; // Kan ikke flytte ud uden en 6'er
-            }
-        }
-        else if (piece.Position >= 0)
-        {
-            piece.Position += diceRoll;
-
-            // 🆕 Tjek om vi lander på en modstander!
-            foreach (var opponent in _players.Where(p => p.Id != currentPlayer.Id))
-            {
-                var hitPiece = opponent.Pieces.FirstOrDefault(p => p.Position == piece.Position);
-                if (hitPiece != null)
-                {
-                    hitPiece.Position = -1; // Slår modstanders brik hjem
-                }
-            }
-
             CheckWinner();
-            return true;
         }
-        else
-        {
-            return false; // Ugyldigt træk
-        }
+        return success;
     }
-
-
-
-
-
-
 
     public int? CheckWinner()
     {
@@ -181,23 +155,9 @@ public class GameController : IGameController
     /// </summary>
     public List<int> GetValidMoves(int diceRoll)
     {
-        var validPieceIds = new List<int>();
-
         var currentPlayer = _players[_currentPlayerIndex];
-        foreach (var piece in currentPlayer.Pieces)
-        {
-            if (piece.Position == -1)
-            {
-                if (diceRoll == 6)
-                    validPieceIds.Add(piece.Id); // Må kun flytte ud med 6
-            }
-            else if (piece.Position >= 0)
-            {
-                validPieceIds.Add(piece.Id); // Kan altid flytte på brættet
-            }
-        }
-
-        return validPieceIds;
+        // Delegate to Move class
+        return _move.GetValidMoves(currentPlayer, diceRoll);
     }
 
     // 🆕 Gemmer hele spillets tilstand
