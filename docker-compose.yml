@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  backend:
+    image: ihd85/ludo-backend:v1.1
+    container_name: ludo-backend2
+    ports:
+      - "5001:8080"
+    environment:                 #  ←  tilføj disse to linjer
+      - ASPNETCORE_ENVIRONMENT=Development
+    restart: unless-stopped
+
